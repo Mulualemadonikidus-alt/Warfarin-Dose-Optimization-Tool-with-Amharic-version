@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warfarin & Enoxaparin Dosing Assistant (Target 2.5-3.5)</title>
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-light: #eff6ff;
+            --success: #15803d;
+            --success-bg: #f0fdf4;
+            --warning: #b45309;
+            --warning-bg: #fffbeb;
+            --danger: #b91c1c;
+            --danger-bg: #fef2f2;
+            --text: #1f2937;
+            --border: #e5e7eb;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: #f3f4f6;
+            color: var(--text);
+            line-height: 1.5;
+            padding: 16px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .lang-switcher {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid white;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .lang-switcher:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        .header {
+            background-color: var(--primary);
+            color: #ffffff;
+            padding: 24px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 1.4rem;
+            margin-bottom: 6px;
+            padding-right: 60px;
+            text-align: left;
+        }
+
+        .header p {
+            font-size: 0.85rem;
+            opacity: 0.9;
+            text-align: left;
+        }
+
+        .disclaimer-box {
+            background-color: var(--warning-bg);
+            border-left: 4px solid var(--warning);
+            padding: 12px;
+            margin: 16px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: var(--warning);
+        }
+
+        .form-group {
+            padding: 0 16px 16px 16px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            font-size: 0.95rem;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            margin-bottom: 4px;
+        }
+
+        .input-hint {
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+
+        input:focus {
+            outline: 2px solid var(--primary);
+        }
+
+        .btn {
+            display: block;
+            width: calc(100% - 32px);
+            margin: 8px 16px 20px 16px;
+            padding: 14px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background-color: #1d4ed8;
+        }
+
+        .result-card {
+            margin: 0 16px 20px 16px;
+            padding: 16px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .result-status {
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .result-instruction {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .status-in-range {
+            background-color: var(--success-bg);
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+
+        .status-modifying {
+            background-color: var(--warning-bg);
+            border: 1px solid var(--warning);
+            color: var(--warning);
+        }
+
+        .status-critical {
+            background-color: var(--danger-bg);
+            border: 2px solid var(--danger);
+            color: var(--danger);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <button class="lang-switcher" onclick="toggleLanguage()" id="langBtn">አማርኛ</button>
+    
+    <div class="header">
+        <h1 id="txtTitle">Warfarin Dosing Assistant</h1>
+        <p id="txtSubtitle">Mechanical Valve Target Protocol (INR 2.5 - 3.5)</p>
+    </div>
+
+    <div class="disclaimer-box" id="txtDisclaimer">
+        <strong>⚠️ MEDICAL DISCLAIMER:</strong> This application is a clinical decision support reference for weekly titration using 2.5 mg tablet steps. It does not replace independent clinical judgment or direct physician supervision.
+    </div>
+
+    <div class="form-group">
+        <label id="lblCurrentDose" for="currentDose">Current Total WEEKLY Warfarin Dose (mg)</label>
+        <input type="number" id="currentDose" step="0.5" placeholder="e.g., 35.0" min="0">
+        <div class="input-hint" id="hintCurrentDose">Sum of all doses taken across 7 days (e.g., 5mg daily = 35mg weekly).</div>
+    </div>
+
+    <div class="form-group">
+        <label id="lblInrValue" for="inrValue">Recent INR Result</label>
+        <input type="number" id="inrValue" step="0.01" placeholder="e.g., 2.9" min="0">
+    </div>
+
+    <button class="btn" id="btnCalculate" onclick="calculateDose()">Calculate Recommendation</button>
+
+    <div id="resultCard" class="result-card">
+        <div id="resultStatus" class="result-status"></div>
+        <div id="resultInstruction" class="result-instruction"></div>
+    </div>
+</div>
+
+<script>
+    let currentLang = 'en';
+    const translations = {
+        en: {
+            title: "Warfarin Dosing Assistant",
+            subtitle: "Mechanical Valve Target Protocol (INR 2.5 - 3.5)",
+            disclaimer: "<strong>⚠️ MEDICAL DISCLAIMER:</strong> This application is a clinical decision support reference for weekly titration using 2.5 mg tablet steps. It does not replace independent clinical judgment or direct physician supervision.",
+            lblWeeklyDose: "Current Total WEEKLY Warfarin Dose (mg)",
+            hintWeeklyDose: "Sum of all doses taken across 7 days (e.g., 5mg daily = 35mg weekly).",
+            lblInr: "Recent INR Result",
+            btnCalc: "Calculate Recommendation",
+            btnLang: "አማርኛ",
+            invalidInput: "Invalid Input",
+            invalidInputDetails: "Please enter valid numbers greater than 0.",
+            critLowStatus: "CRITICAL: Deeply Sub-Therapeutic (INR 1.0 - 1.9)",
+            critLowInst: "Increase total weekly dose by 15% to 20% due to critical thromboembolic risk.<br><br><strong>New Total Weekly Dose:</strong> {newDose} mg<br><strong>Adjustment:</strong> Add {tabCount} tablet(s) of 2.5 mg across the week.<br><br>⚠️ <strong>CRITICAL CAUTION / ENOXAPARIN BRIDGE:</strong> Contact your physician immediately to manage your dose and initiate therapeutic <strong>Enoxaparin (low-molecular-weight heparin) injections</strong> to protect your heart valve until your INR reaches the safe range.",
+            lowStatus: "Low Range (INR 2.0 - 2.4)",
+            lowInst: "Increase total weekly dose by approximately 10% to 15%, rounded to the nearest 2.5 mg tablet step.<br><br><strong>New Total Weekly Dose:</strong> {newDose} mg<br><strong>Adjustment:</strong> Add {tabCount} tablet(s) of 2.5 mg across the week.<br><br>⚠️ <strong>PROMPT CAUTION / ENOXAPARIN EVALUATION:</strong> Consult your physician promptly to evaluate whether short-term protective <strong>Enoxaparin injections</strong> are required based on your specific valve type, position, and clinical history.<br><em>Re-check INR in 1 week.</em>",
+            targetStatus: "IN TARGET RANGE (INR 2.5 - 3.5)",
+            targetInst: "Target achieved. Maintain your current stable regimen.<br><br><strong>Current Total Weekly Dose:</strong> {newDose} mg.<br><em>Repeat tracking INR in 2 to 4 weeks per standard protocol.</em>",
+            highStatus: "Elevated Range (INR 3.6 - 4.5)",
+            highInst: "Decrease total weekly dose by approximately 10% to 15%, rounded to the nearest 2.5 mg tablet step.<br><br><strong>New Total Weekly Dose:</strong> {newDose} mg<br><strong>Adjustment:</strong> Reduce by {tabCount} tablet(s) of 2.5 mg across the week.<br><em>Re-check INR in 1 week.</em>",
+            veryHighStatus: "WARNING: Highly Elevated (INR 4.6 - 5.0)",
+            veryHighInst: "<strong>Action Required:</strong> Skip (hold) one full daily dose fraction this week.<br><br>Reduce subsequent total weekly dose by approximately 15% to 20% (rounded to 2.5 mg steps).<br><strong>New Total Weekly Dose:</strong> {newDose} mg (Remove {tabCount} tabs of 2.5 mg total this week).<br><em>Retest INR within 48 to 72 hours.</em>",
+            emergencyStatus: "EMERGENCY: High Bleeding Risk (INR > 5.0)",
+            emergencyInst: "<strong>STOP TAKING WARFARIN IMMEDIATELY.</strong><br><br>Do not take any further doses. Contact your medical provider, visit Tikur Anbessa Specialized Hospital (TASH) emergency department, or seek immediate emergency care."
+        },
+        am: {
+            title: "የዋርፋሪን መጠን መቆጣጠሪያ ረዳት",
+            subtitle: "የሰው ሰራሽ የልብ ቫልቭ የዒላማ ፕሮቶኮል (INR 2.5 - 3.5)",
+            disclaimer: "<strong>⚠️ የሕክምና ማስተባበያ፦</strong> ይህ መተግበሪያ በየሳምንቱ በ2.5 ሚሊግራም ክኒን ጭማሪዎች ላይ የተመሠረተ የሕክምና ውሳኔ ድጋፍ ማጣቀሻ ነው። የሐኪምን ገለልተኛ ውሳኔ ወይም የቅርብ ክትትል አይተካም።",
+            lblWeeklyDose: "የአሁኑ አጠቃላይ የሳምንት የዋርፋሪን መጠን (በሚሊግራም)",
+            hintWeeklyDose: "በ7 ቀናት ውስጥ የተወሰዱ መጠኖች ድምር (ምሳሌ፦ በቀን 5mg = በሳምንት 35mg)።",
+            lblInr: "የቅርብ ጊዜ የ-INR ውጤት",
+            btnCalc: "ምክረ-ሐሳብን አስላ",
+            btnLang: "English",
+            invalidInput: "የተሳሳተ መረጃ",
+            invalidInputDetails: "እባክዎ ከ0 በላይ የሆኑ ትክክለኛ ቁጥሮችን ያስገቡ።",
+            critLowStatus: "አስቸኳይ፦ በጣም ዝቅተኛ የፈውስ መጠን (INR 1.0 - 1.9)",
+            critLowInst: "ሊከሰት ከሚችለው የደም መርጋት አደጋ የተነሳ አጠቃላይ የሳምንት መጠንዎን ከ15% እስከ 20% ያሳድጉ (ወደ ቅርብ 2.5 mg ክኒን ተጠግቶ የተሰላ)።<br><br><strong>አዲሱ አጠቃላይ የሳምንት መጠን፦</strong> {newDose} ሚሊግራም<br><strong>ማስተካከያ፦</strong> በሳምንቱ ውስጥ {tabCount} የ2.5 mg ክኒኖችን ይጨምሩ።<br><br>⚠️ <strong>ከፍተኛ ጥንቃቄ / የኤኖክሳፓሪን መርፌ፦</strong> የልብ ቫልቭዎን ከአደጋ ለመጠበቅ የ-INR መጠንዎ አስተማማኝ ደረጃ ላይ እስኪደርስ ድረስ መጠኑን ለማስተካከል እና ጊዜያዊ <strong>የኤኖክሳፓሪን (Enoxaparin) መርፌ ህክምና</strong> ለመጀመር ወዲያውኑ ሐኪምዎን ያማክሩ።",
+            lowStatus: "ዝቅተኛ ክልል (INR 2.0 - 2.4)",
+            lowInst: "አጠቃላይ የሳምንት መጠንዎን ከ10% እስከ 15% ያሳድጉ (ወደ ቅርብ 2.5 ሚሊግራም ክኒን ተጠግቶ የተሰላ)።<br><br><strong>አዲሱ አጠቃላይ የሳምንት መጠን፦</strong> {newDose} ሚሊግራም<br><strong>ማስተካከያ፦</strong> በሳምንቱ ውስጥ {tabCount} የ2.5 ሚሊግራም ክኒን(ችን) ይጨምሩ።<br><br>⚠️ <strong>አፋጣኝ ጥንቃቄ / የኤኖክሳፓሪን ግምገማ፦</strong> እንደ የልብ ቫልቭዎ አይነት፣ አቀማመጥ እና የጤና ታሪክዎ ጊዜያዊ <strong>የኤኖክሳፓሪን መርፌ (Enoxaparin injection)</strong> መከላከያ እንደሚያስፈልግዎ ለማወቅ በአፋጣኝ ሐኪምዎን ያማክሩ።<br><em>በ1 ሳምንት ውስጥ የ-INR ምርመራ እንደገና ያድርጉ።</em>",
+            targetStatus: "በትክክለኛው የዒላማ ክልል ውስጥ (INR 2.5 - 3.5)",
+            targetInst: "የዒላማው ክልል ተገኝቷል። የአሁኑን የተረጋጋ የሕክምና መጠንዎን ይቀጥሉ<br><br><strong>አጠቃላይ የሳምንት መጠን፦</strong> {newDose} ሚሊግራም።<br><em>ከ2 እስከ 4 ሳምንታት ባለው ጊዜ ውስጥ መደበኛ የ-INR ምርመራ ያድርጉ።</em>",
+            highStatus: "ከፍተኛ ክልል (INR 3.6 - 4.5)",
+            highInst: "አጠቃላይ የሳምንት መጠንዎን ከ10% እስከ 15% ይቀንሱ (ወደ ቅርብ 2.5 ሚሊግራም ክኒን ተጠግቶ የተሰላ)።<br><br><strong>አዲሱ አጠቃላይ የሳምንት መጠን፦</strong> {newDose} ሚሊግራም<br><strong>ማስተካከያ፦</strong> በሳምንቱ ውስጥ {tabCount} የ2.5 ሚሊግራም ክኒን(ችን) ይቀንሱ።<br><em>በ1 ሳምንት ውስጥ የ-INR ምርመራ እንደገና ያድርጉ።</em>",
+            veryHighStatus: "ማስጠንቀቂያ፦ በጣም ከፍተኛ ክልል (INR 4.6 - 5.0)",
+            veryHighInst: "<strong>አስፈላጊ እርምጃ፦</strong> በዚህ ሳምንት የአንድ ቀን መጠንን ሙሉ በሙሉ ይለፉ (አይውሰዱ)።<br><br>ከዚያ በኋላ ያለውን የሳምንት መጠን በ15% እስከ 20% ይቀንሱ (በ2.5mg ክኒን ደረጃዎች የተሰላ)።<br><strong>አዲሱ አጠቃላይ የሳምንት መጠን፦</strong> {newDose} ሚሊግራም (በዚህ ሳምንት በአጠቃላይ {tabCount} የ2.5mg ክኒኖችን ይቀንሱ)።<br><em>በ48 እስከ 72 ሰዓታት ውስጥ የ-INR ምርመራ ያድርጉ።</em>",
+            emergencyStatus: "አስቸኳይ አደጋ፦ ከፍተኛ የደም መፍሰስ ስጋት (INR > 5.0)",
+            emergencyInst: "<strong>ዋርፋሪን መውሰድን በአስቸኳይ ያቁሙ።</strong><br><br>ምንም ተጨማሪ መጠን አይውሰዱ። ወዲያውኑ ወደ ሕክምና ባለሙያዎ ይደውሉ ወይም በአቅራቢያዎ ወደሚገኝ ድንገተኛ አደጋ ክፍል (ለምሳሌ ጥቁር አንበሳ ሆስፒታል) ይሂዱ።"
+        }
+    };
+
+    function toggleLanguage() {
+        currentLang = (currentLang === 'en') ? 'am' : 'en';
+        const lang = translations[currentLang];
+        
+        document.getElementById('langBtn').innerText = lang.btnLang;
+        document.getElementById('txtTitle').innerText = lang.title;
+        document.getElementById('txtSubtitle').innerText = lang.subtitle;
+        document.getElementById('txtDisclaimer').innerHTML = lang.disclaimer;
+        document.getElementById('lblCurrentDose').innerText = lang.lblWeeklyDose;
+        document.getElementById('hintCurrentDose').innerText = lang.hintWeeklyDose;
+        document.getElementById('lblInrValue').innerText = lang.lblInr;
+        document.getElementById('btnCalculate').innerText = lang.btnCalc;
+        
+        // Hide card cleanly to prevent raw unreplaced language templates from flashing
+        document.getElementById('resultCard').style.display = 'none';
+    }
+
+    function calculateDose() {
+        const currentWeeklyDose = parseFloat(document.getElementById('currentDose').value);
+        const inr = parseFloat(document.getElementById('inrValue').value);
+        
+        const resultCard = document.getElementById('resultCard');
+        const resultStatus = document.getElementById('resultStatus');
+        const resultInstruction = document.getElementById('resultInstruction');
+        const lang = translations[currentLang];
+
+        // Reset component state and layout classes
+        resultCard.className = "result-card";
+
+        if (isNaN(currentWeeklyDose) || isNaN(inr) || currentWeeklyDose <= 0 || inr <= 0) {
+            resultCard.classList.add('status-critical');
+            resultStatus.innerText = lang.invalidInput;
+            resultInstruction.innerText = lang.invalidInputDetails;
+            resultCard.style.display = 'block';
+            return;
+        }
+
+        let newWeeklyDose = currentWeeklyDose;
+        let statusText = '';
+        let instructionTemplate = '';
+        let cardClass = '';
+
+        // Dosing Matrix Algorithm (Target 2.5 - 3.5) with integrated LMWH alerts
+        if (inr < 2.0) {
+            cardClass = 'status-critical';
+            statusText = lang.critLowStatus;
+            instructionTemplate = lang.critLowInst;
+            const rawAdjusted = currentWeeklyDose * 1.175; // ~17.5% increase
+            newWeeklyDose = Math.round(rawAdjusted / 2.5) * 2.5;
+            if (newWeeklyDose === currentWeeklyDose) newWeeklyDose += 2.5;
+            
+        } else if (inr >= 2.0 && inr < 2.5) {
+            cardClass = 'status-modifying';
+            statusText = lang.lowStatus;
+            instructionTemplate = lang.lowInst;
+            const rawAdjusted = currentWeeklyDose * 1.125; // ~12.5% increase
+            newWeeklyDose = Math.round(rawAdjusted / 2.5) * 2.5;
+            if (newWeeklyDose === currentWeeklyDose) newWeeklyDose += 2.5;
+
+        } else if (inr >= 2.5 && inr <= 3.5) {
+            cardClass = 'status-in-range';
+            statusText = lang.targetStatus;
+            instructionTemplate = lang.targetInst;
+            newWeeklyDose = currentWeeklyDose;
+
+        } else if (inr >= 3.6 && inr <= 4.5) {
+            cardClass = 'status-modifying';
+            statusText = lang.highStatus;
+            instructionTemplate = lang.highInst;
+            const rawAdjusted = currentWeeklyDose * 0.875; // ~12.5% reduction
+            newWeeklyDose = Math.round(rawAdjusted / 2.5) * 2.5;
+            if (newWeeklyDose === currentWeeklyDose) newWeeklyDose -= 2.5;
+
+        } else if (inr >= 4.6 && inr <= 5.0) {
+            cardClass = 'status-critical';
+            statusText = lang.veryHighStatus;
+            instructionTemplate = lang.veryHighInst;
+            const rawAdjusted = currentWeeklyDose * 0.825; // ~17.5% reduction
+            newWeeklyDose = Math.round(rawAdjusted / 2.5) * 2.5;
+            if (newWeeklyDose === currentWeeklyDose) newWeeklyDose -= 2.5;
+
+        } else if (inr > 5.0) {
+            cardClass = 'status-critical';
+            resultStatus.innerText = lang.emergencyStatus;
+            resultInstruction.innerHTML = lang.emergencyInst;
+            resultCard.classList.add(cardClass);
+            resultCard.style.display = 'block';
+            return;
+        }
+
+        if (newWeeklyDose < 0) newWeeklyDose = 0;
+
+        // Calculate tablet fractions
+        const absoluteDiff = Math.abs(newWeeklyDose - currentWeeklyDose);
+        const tabCount = (absoluteDiff / 2.5).toFixed(1).replace('.0', '');
+
+        // Safely map string replacements into UI targets
+        resultStatus.innerText = statusText;
+        resultInstruction.innerHTML = instructionTemplate
+            .replace('{newDose}', newWeeklyDose)
+            .replace('{tabCount}', tabCount);
+
+        resultCard.classList.add(cardClass);
+        resultCard.style.display = 'block'; // Force layout engine visibility override
+    }
+</script>
+
+</body>
+</html>
